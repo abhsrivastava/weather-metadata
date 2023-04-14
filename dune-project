@@ -5,11 +5,11 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github abhsrivastava/weather-metadata))
 
-(authors "Author Name")
+(authors "Abhishek Srivastava")
 
-(maintainers "Maintainer Name")
+(maintainers "Abhishek Srivastava")
 
 (license LICENSE)
 
@@ -17,8 +17,8 @@
 
 (package
  (name weather_metadata)
- (synopsis "A short synopsis")
- (description "A longer description")
+ (synopsis "Download metadata for weather for trailhead co-ordinates")
+ (description "Calls the weather.gov API to download metadata related to weather coordindates")
  (depends 
   ocaml 
   dune
