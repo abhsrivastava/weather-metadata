@@ -1,0 +1,3 @@
+(library
+ (name weather_metadata)
+ (libraries cohttp-lwt-unix cohttp-async yojson))
