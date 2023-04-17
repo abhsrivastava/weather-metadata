@@ -10,7 +10,7 @@ let make_http_call ?(wait=15) = function
   | Process(list) -> 
     list 
     |> List.map(Uri.of_string)
-    |> Lwt_list.map_p (fun uri -> 
+    |> Lwt_list.map_s (fun uri -> 
       Lwt.catch 
         (fun () -> uri |> Client.get |> Lwt.map(Option.some)) 
         (function 
@@ -19,7 +19,7 @@ let make_http_call ?(wait=15) = function
     )
     |> Lwt.map(Util.remove_none)
     >>= (fun list -> 
-      list |> Lwt_list.map_p(fun (resp, body) -> 
+      list |> Lwt_list.map_s(fun (resp, body) -> 
         let code = resp |> Response.status |> Cohttp.Code.code_of_status in
         if code == 200 then 
           Lwt.catch 
@@ -27,19 +27,20 @@ let make_http_call ?(wait=15) = function
             (function
               | exn -> exn |> Printexc.to_string |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None)
             )
-        else begin 
+        else  
           "did not get 200 response" |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None )
-        end
       )
     )
   | Wait -> 
-    print_endline("going to wait now for " ^ (wait |> Int.to_string) ^ " seconds");Unix.sleep(wait); [None] |> Lwt.return
+    print_endline("going to wait now for " ^ (wait |> Int.to_string) ^ " seconds");
+    Unix.sleep(wait); 
+    [None] |> Lwt.return
 
 let get_metadata_for_trails () =
   trailsList 
   |> List.map buildUrl
   |> Util.split 10
-  |> Lwt_list.map_p(make_http_call) (* returns string option list list Lwt :) *)
+  |> Lwt_list.map_s(make_http_call) (* returns string option list list Lwt :) *)
   |> Lwt.map(List.flatten) (* now we are down to string option list lwt thanks to flatten *)
   |> Lwt.map (Util.remove_none) (* now we are down to string list lwt thanks to remove none *)
   
@@ -58,10 +59,8 @@ let parse_json json =
       }
     )
   )
-  
+
 let get_metadata () = 
   get_metadata_for_trails() 
   |> Lwt.map (List.map Yojson.Basic.from_string)
   |> Lwt.map (List.map parse_json)
-
-
