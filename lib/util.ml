@@ -27,3 +27,8 @@ let split size input =
     | Some(x) -> x :: result
     | _ -> result
     ) []
+  
+  let print_list (list: 'a list) (fn: 'a -> string) : unit = 
+    list 
+    |> List.fold_left (fun result x -> result ^ "," ^ fn x) "" 
+    |> print_endline

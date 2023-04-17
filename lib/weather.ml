@@ -6,30 +6,56 @@ open Data
 let buildUrl (lat, long) : string =
   "https://api.weather.gov/points/" ^ (Util.to_string lat) ^ "," ^ (Util.to_string long)
 
-let make_http_call = function 
+let make_http_call ?(wait=5) = function 
   | Process(list) -> 
-    list |> List.map (fun url -> 
-      Printf.printf "Going to call %s \n" url;
-      url 
-      |> Uri.of_string
-      |> Client.get
-      >>= fun (resp, body) -> 
+    list 
+    |> List.map(fun str -> 
+      try 
+        str |> Uri.of_string |> Option.some
+      with 
+      | exn -> 
+        "could not generate URI " ^
+        "because of exception " ^
+        (exn |> Printexc.to_string) 
+        |> print_endline;
+        None
+    ) 
+    |> Util.remove_none
+    |> Lwt_list.map_p (fun uri -> 
+      try
+        uri |> Client.get |> Lwt.map(Option.some)
+      with 
+      | exn -> 
+        "could not get data for " ^ 
+        (uri |> Uri.to_string) ^ 
+        "because of exception " ^ 
+        (exn |> Printexc.to_string) 
+        |> Lwt_io.(write stdout) |> Lwt.map( fun _ -> None)
+    )
+    |> Lwt.map(Util.remove_none)
+    >>= (fun list -> 
+      list |> Lwt_list.map_p(fun (resp, body) -> 
         let code = resp |> Response.status |> Cohttp.Code.code_of_status in
-        Printf.printf "Response code: %d\n" code;
-        body |> Cohttp_lwt.Body.to_string |> Lwt.map (fun x -> Some(x))
+        if code == 200 then 
+          try 
+            body |> Cohttp_lwt.Body.to_string |> Lwt.map (Option.some)
+          with 
+          | exn -> exn |> Printexc.to_string |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None)
+        else begin 
+          "did not get 200 response" |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None )
+        end
+      )
     )
   | Wait -> 
-    Printf.printf "%s\n" "waiting :)";
-    [Lwt_unix.sleep 3.0] |> List.map (Lwt.map (fun _ -> None))
+    print_endline("going to wait now for " ^ (wait |> Int.to_string) ^ " seconds");Unix.sleep(wait); [None] |> Lwt.return
 
 let get_metadata_for_trails () =
   trailsList 
   |> List.map buildUrl
-  |> Util.split 50 
-  |> List.map (make_http_call)
-  |> List.flatten
-  |> Lwt.all
-  |> Lwt.map (Util.remove_none)
+  |> Util.split 50
+  |> Lwt_list.map_p(make_http_call) (* returns string option list list Lwt :) *)
+  |> Lwt.map(List.flatten) (* now we are down to string option list lwt thanks to flatten *)
+  |> Lwt.map (Util.remove_none) (* now we are down to string list lwt thanks to remove none *)
   
 let parse_json json = 
   Metadata.(
