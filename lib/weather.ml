@@ -4,43 +4,29 @@ open Cohttp_lwt_unix
 open Data
 
 let buildUrl (lat, long) : string =
-  "https://api.weather.gov/points/" ^ (Util.to_string lat) ^ "," ^ (Util.to_string long)
+  "https://api.weather.gov/points/" ^ (Util.to_string lat) ^ "," ^ (Util.to_string long) |> String.trim
 
-let make_http_call ?(wait=5) = function 
+let make_http_call ?(wait=15) = function 
   | Process(list) -> 
     list 
-    |> List.map(fun str -> 
-      try 
-        str |> Uri.of_string |> Option.some
-      with 
-      | exn -> 
-        "could not generate URI " ^
-        "because of exception " ^
-        (exn |> Printexc.to_string) 
-        |> print_endline;
-        None
-    ) 
-    |> Util.remove_none
+    |> List.map(Uri.of_string)
     |> Lwt_list.map_p (fun uri -> 
-      try
-        uri |> Client.get |> Lwt.map(Option.some)
-      with 
-      | exn -> 
-        "could not get data for " ^ 
-        (uri |> Uri.to_string) ^ 
-        "because of exception " ^ 
-        (exn |> Printexc.to_string) 
-        |> Lwt_io.(write stdout) |> Lwt.map( fun _ -> None)
+      Lwt.catch 
+        (fun () -> uri |> Client.get |> Lwt.map(Option.some)) 
+        (function 
+        | exn -> "\nReceived Exception for url: " ^ (uri |> Uri.to_string) ^ "\nException: " ^ (exn |> Printexc.to_string) |> Lwt_io.(write stdout) |> Lwt.map(fun _ -> None)
+        )
     )
     |> Lwt.map(Util.remove_none)
     >>= (fun list -> 
       list |> Lwt_list.map_p(fun (resp, body) -> 
         let code = resp |> Response.status |> Cohttp.Code.code_of_status in
         if code == 200 then 
-          try 
-            body |> Cohttp_lwt.Body.to_string |> Lwt.map (Option.some)
-          with 
-          | exn -> exn |> Printexc.to_string |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None)
+          Lwt.catch 
+            (fun () -> body |> Cohttp_lwt.Body.to_string |> Lwt.map (Option.some))
+            (function
+              | exn -> exn |> Printexc.to_string |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None)
+            )
         else begin 
           "did not get 200 response" |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None )
         end
@@ -52,7 +38,7 @@ let make_http_call ?(wait=5) = function
 let get_metadata_for_trails () =
   trailsList 
   |> List.map buildUrl
-  |> Util.split 50
+  |> Util.split 10
   |> Lwt_list.map_p(make_http_call) (* returns string option list list Lwt :) *)
   |> Lwt.map(List.flatten) (* now we are down to string option list lwt thanks to flatten *)
   |> Lwt.map (Util.remove_none) (* now we are down to string list lwt thanks to remove none *)
