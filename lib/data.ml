@@ -97,7 +97,9 @@ module InputData = struct
       {
         latitude = latitude;
         longitude = longitude;
-        metadataUrl = "https://api.weather.gov/points/" ^ (latitude |> Float.to_string) ^ "," ^ (longitude |> Float.to_string);
+        metadataUrl = "https://api.weather.gov/points/" ^ 
+          (latitude |> Util.to_string) ^ "," ^ 
+          (longitude |> Util.to_string);
         trailhead = trailhead;
         trailheadUrl = trailheadUrlOpt;
       }

@@ -33,7 +33,7 @@ let make_http_call (inputObject: InputData.t) client =
               | exn -> exn |> Printexc.to_string |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None)
               )
           else
-            "did not get 200 response" 
+            "\nDid not get 200 response for url: " ^ inputObject.metadataUrl ^ "\nInstead got response " ^ (code |> Int.to_string) 
             |> Lwt_io.(write stdout) 
             |> Lwt.map ( fun _ -> None )  
       | None -> () |> Lwt.return |> Lwt.map(fun _ -> None)  
