@@ -56,6 +56,7 @@ let parse_json json =
   Metadata.(
     Yojson.Basic.Util.(
       {
+        id = json |> member "id" |> to_string_option |> Option.value ~default:"";
         gridId = json |> member "properties" |> member "gridId" |> to_string_option |> Option.value ~default:"";
         gridX = json |> member "properties" |> member "gridX" |> to_int_option |> Option.value ~default:0;
         gridY = json |> member "properties" |> member "gridY" |> to_int_option |> Option.value ~default:0;

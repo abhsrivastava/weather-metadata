@@ -16,3 +16,4 @@ setup.log
 *.install
 _opam/
 *.opam
+trail_database.json
