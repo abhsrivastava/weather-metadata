@@ -3,7 +3,8 @@ open Weather_metadata.Data
 
 let () = 
   let inputJson = Yojson.Basic.from_file "input.json" in
-  let outputJson = get_metadata(inputJson) 
+  let inputObjectList = inputJson |> InputData.from_json in 
+  let outputJson = get_metadata(inputObjectList) 
   |> Lwt.map Metadata.to_json_list
   |> Lwt_main.run
   |> Yojson.Basic.pretty_to_string in 

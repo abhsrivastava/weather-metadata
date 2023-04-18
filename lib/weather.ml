@@ -1,4 +1,3 @@
-open Database
 open Lwt
 open Cohttp_lwt_unix
 open Data
@@ -11,13 +10,8 @@ module RateLimiter = Lwt_throttle.Make(
   end
 )
 
-let buildUrl (lat, long) : string =
-  "https://api.weather.gov/points/" ^ 
-  (Util.to_string lat) ^ "," ^ 
-  (Util.to_string long) |> String.trim
-
-let make_http_call client uriStr =
-    let uri = uriStr |> Uri.of_string in
+let make_http_call (inputObject: InputData.t) client =
+    let uri = inputObject.metadataUrl |> Uri.of_string in
     Lwt.catch 
       (fun () -> uri |> client |> Lwt.map(Option.some)) 
       (function 
@@ -34,7 +28,7 @@ let make_http_call client uriStr =
           let code = resp |> Response.status |> Cohttp.Code.code_of_status in
           if code == 200 then 
             Lwt.catch 
-              (fun () -> body |> Cohttp_lwt.Body.to_string |> Lwt.map (Option.some))
+              (fun () -> body |> Cohttp_lwt.Body.to_string |> Lwt.map (fun body -> Some((inputObject, body))))
               (function
               | exn -> exn |> Printexc.to_string |> Lwt_io.(write stdout) |> Lwt.map ( fun _ -> None)
               )
@@ -45,18 +39,22 @@ let make_http_call client uriStr =
       | None -> () |> Lwt.return |> Lwt.map(fun _ -> None)  
     )
 
-let get_metadata_for_trails client =
-  trailsList 
-  |> List.map buildUrl
-  |> Lwt_list.map_s(make_http_call client) (* returns string option list Lwt *)
+let get_metadata_for_trails (inputObjectList: InputData.t list) client =
+  inputObjectList
+  |> Lwt_list.map_s(fun (inputObject: InputData.t) -> make_http_call inputObject client) (* returns string option list Lwt *)
   |> Lwt.map (Util.remove_none) (* now we are down to string list lwt thanks to remove none *)
   
-let parse_json json = 
+let parse_json (inputObject: InputData.t) json = 
   try 
   Metadata.(
     Yojson.Basic.Util.(
       {
         id = json |> member "id" |> to_string_option |> Option.value ~default:"";
+        latitude = inputObject.latitude;
+        longitude = inputObject.longitude;
+        metadataUrl = inputObject.metadataUrl;
+        trailhead = inputObject.trailhead;
+        trailheadUrl = inputObject.trailheadUrl;
         gridId = json |> member "properties" |> member "gridId" |> to_string_option |> Option.value ~default:"";
         gridX = json |> member "properties" |> member "gridX" |> to_int_option |> Option.value ~default:0;
         gridY = json |> member "properties" |> member "gridY" |> to_int_option |> Option.value ~default:0;
@@ -75,7 +73,7 @@ let parse_json json =
     |> print_endline; 
     None
 
-let get_metadata () = 
+let get_metadata (inputObjectList: InputData.t list) = 
   let rec throttled_get uri = 
     let limiter = RateLimiter.create ~rate:1 ~max:1 ~n:1 in 
     let channel = "https://api.weather.gov/" in   
@@ -86,8 +84,7 @@ let get_metadata () =
     else 
       let* () = Lwt_unix.sleep 1. in throttled_get uri
   in
-  throttled_get 
-  |> get_metadata_for_trails 
-  |> Lwt.map (List.map Yojson.Basic.from_string)
-  |> Lwt.map (List.map parse_json)
+  get_metadata_for_trails inputObjectList throttled_get
+  |> Lwt.map (List.map (fun (inputObject, body) -> (inputObject, Yojson.Basic.from_string body)))
+  |> Lwt.map (List.map (fun (inputObject, json) -> parse_json inputObject json))
   |> Lwt.map(Util.remove_none)
