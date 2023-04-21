@@ -47,9 +47,7 @@ let get_metadata_for_trails (inputObjectList : InputData.t list) client =
   inputObjectList
   |> Lwt_list.map_s (fun (inputObject : InputData.t) ->
          make_http_call inputObject client)
-     (* returns string option list Lwt *)
   |> Lwt.map Util.remove_none
-(* now we are down to string list lwt thanks to remove none *)
 
 let parse_json (inputObject : InputData.t) json =
   Lwt.catch
