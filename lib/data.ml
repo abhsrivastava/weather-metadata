@@ -54,7 +54,16 @@ module Metadata = struct
       |> Option.fold ~none:fields ~some:(fun v ->
              List.concat [ fields; [ ("trailhead-url", `String v) ] ]))
 
-  let to_json_list list = `List (list |> List.map to_json)
+  let to_json_from_list list = `List (list |> List.map to_json)
+
+  let to_json_from_hashtbl map =
+    `List
+      (Hashtbl.fold
+         (fun k v result ->
+           `Assoc
+             [ ("url", `String k); ("trailhead-list", v |> to_json_from_list) ]
+           :: result)
+         map [])
 end
 
 module InputData = struct
@@ -74,8 +83,8 @@ module InputData = struct
     ^ "; " ^ "metadataUrl" ^ t.metadataUrl ^ ";" ^ "trailhead=" ^ t.trailhead
     ^ "; "
     ^ (if t.trailheadUrl |> Option.is_some then
-         "trailheadUrl=" ^ (t.trailheadUrl |> Option.value ~default:"") ^ "; "
-       else "")
+       "trailheadUrl=" ^ (t.trailheadUrl |> Option.value ~default:"") ^ "; "
+      else "")
     ^ "}"
 
   let to_json t =

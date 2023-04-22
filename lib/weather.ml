@@ -117,3 +117,16 @@ let get_metadata (inputObjectList : InputData.t list) =
             (inputObject, Yojson.Basic.from_string body)))
   >>= Lwt_list.map_s (fun (inputObject, json) -> parse_json inputObject json)
   |> Lwt.map Util.remove_none
+  |> Lwt.map (fun list ->
+         list
+         |> List.fold_left
+              (fun (result : (string, Metadata.t list) Hashtbl.t)
+                   (md : Metadata.t) ->
+                let _ =
+                  match Hashtbl.find_opt result md.forecastHourly with
+                  | None -> Hashtbl.add result md.forecastHourly [ md ]
+                  | Some vOld ->
+                      Hashtbl.replace result md.forecastHourly (md :: vOld)
+                in
+                result)
+              (Hashtbl.create 100))
