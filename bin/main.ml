@@ -7,7 +7,7 @@ let () =
   let _ = print_endline "\nstarting processing..." in
   let outputJson =
     get_metadata inputObjectList
-    |> Lwt.map Metadata.to_json_from_hashtbl
+    |> Lwt.map Metadata.to_json_from_list
     |> Lwt_main.run |> Yojson.Basic.pretty_to_string
   in
   let file = open_out "trail_database.json" in

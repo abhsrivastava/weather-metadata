@@ -83,8 +83,8 @@ module InputData = struct
     ^ "; " ^ "metadataUrl" ^ t.metadataUrl ^ ";" ^ "trailhead=" ^ t.trailhead
     ^ "; "
     ^ (if t.trailheadUrl |> Option.is_some then
-       "trailheadUrl=" ^ (t.trailheadUrl |> Option.value ~default:"") ^ "; "
-      else "")
+         "trailheadUrl=" ^ (t.trailheadUrl |> Option.value ~default:"") ^ "; "
+       else "")
     ^ "}"
 
   let to_json t =
